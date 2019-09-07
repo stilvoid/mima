@@ -1,8 +1,10 @@
-local WIDTH, HEIGHT = 800, 600
+local WIDTH, HEIGHT = 1024, 768
 
 local SIZE = math.min(WIDTH, HEIGHT) / 2
 
 local zoom = 1
+
+local scale = 1
 
 local vel = 0
 
@@ -17,7 +19,7 @@ function love.load()
     love.window.setMode(WIDTH, HEIGHT)
     love.mouse.setVisible(false)
 
-    love.math.setRandomSeed(2)
+    love.math.setRandomSeed(0)
 
     universe = make_universe()
 end
@@ -26,7 +28,7 @@ function make_size(variability)
     local a = SIZE / variability
     local b = SIZE - a
 
-    return a * love.math.random() + b
+    return b * love.math.random() + a
 end
 
 function draw_planet(p)
@@ -43,7 +45,7 @@ end
 
 function make_planet()
     return {
-        size = make_size(5),
+        size = make_size(10),
         draw = draw_planet,
         colour = {love.math.random(), love.math.random(), love.math.random()},
     }
@@ -63,44 +65,58 @@ end
 
 function make_star()
     return {
-        size = make_size(10),
+        size = make_size(100),
         draw = draw_star,
         colour = {1, love.math.random(), 0},
     }
 end
 
 function draw_solar_system(ss)
+    local x1, y1 = love.graphics.transformPoint(-ss.size, -ss.size)
+    local x2, y2 = love.graphics.transformPoint(ss.size, ss.size)
+    if x2 < 0 or x1 > WIDTH or y2 < 0 or y1 > HEIGHT then
+        return
+    end
+
+    effective_size = (ss.size * 2) / scale * zoom
+    if effective_size <= 10 then
+        love.graphics.setColor(1, 1, 1, 0.5 + (10 - effective_size) / 20)
+        love.graphics.circle("fill", 0, 0, ss.size)
+        return
+    end
+
     -- Suns
     love.graphics.push()
+    scale = scale * 50
     love.graphics.scale(1/50)
     if #ss.suns == 1 then
-        ss.suns[1].draw(ss.suns[1])
+        ss.suns[1]:draw()
     else
         local a = math.pi * 2 / #ss.suns
 
         for i = 1, #ss.suns do
             love.graphics.push()
             love.graphics.translate(SIZE * math.cos(a * i), SIZE * math.sin(a * i))
-            ss.suns[i].draw(ss.suns[i])
+            ss.suns[i]:draw()
             love.graphics.pop()
         end
     end
+    scale = scale / 50
     love.graphics.pop()
 
     -- Planets
-    local d = ss.size / #ss.planets
-    local a = math.pi * 2 / #ss.planets
-
-    for i = 1, #ss.planets do
+    for _, p in ipairs(ss.planets) do
         -- Orbit
         love.graphics.setColor(1, 1, 1, 0.1)
-        love.graphics.circle("line", 0, 0, d * i)
+        love.graphics.circle("line", 0, 0, p.d)
 
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.push()
-        love.graphics.translate(d * i * math.cos(a * i), d * i * math.sin(a * i))
+        love.graphics.translate(p.d * math.cos(p.a), p.d * math.sin(p.a))
+        scale = scale * 100
         love.graphics.scale(1/100)
-        ss.planets[i].draw(ss.planets[i])
+        p.planet:draw()
+        scale = scale / 100
         love.graphics.pop()
     end
 end
@@ -118,13 +134,30 @@ function make_solar_system()
     end
 
     for i = 1, love.math.random() * 10 do
-        ss.planets[#ss.planets + 1] = make_planet()
+        ss.planets[#ss.planets + 1] = {
+            a = math.pi * 2 * love.math.random(),
+            d = ss.size * love.math.random(),
+            planet = make_planet(),
+        }
     end
 
     return ss
 end
 
 function draw_galaxy(g)
+    local x1, y1 = love.graphics.transformPoint(-g.size, -g.size)
+    local x2, y2 = love.graphics.transformPoint(g.size, g.size)
+    if x2 < 0 or x1 > WIDTH or y2 < 0 or y1 > HEIGHT then
+        return
+    end
+
+    effective_size = (g.size * 2) / scale * zoom
+    if effective_size <= 5 then
+        love.graphics.setColor(1, 1, 1, 0.5 + (5 - effective_size) / 10)
+        love.graphics.circle("fill", 0, 0, g.size)
+        return
+    end
+
     -- Cloud
     love.graphics.setColor(1, 1, 1, 0.1)
     love.graphics.circle("fill", 0, 0, g.size)
@@ -133,15 +166,17 @@ function draw_galaxy(g)
     for _, s in ipairs(g.systems) do
         love.graphics.push()
         love.graphics.translate(s.d * math.cos(s.a), s.d * math.sin(s.a))
+        scale = scale * 100
         love.graphics.scale(1/100)
-        s.system.draw(s.system)
+        s.system:draw()
+        scale = scale / 100
         love.graphics.pop()
     end
 end
 
 function make_galaxy()
     g = {
-        size = make_size(1),
+        size = make_size(20),
         draw = draw_galaxy,
         systems = {},
     }
@@ -166,23 +201,25 @@ function draw_universe(u)
     for _, g in ipairs(u.galaxies) do
         love.graphics.push()
         love.graphics.translate(g.d * math.cos(g.a), g.d * math.sin(g.a))
+        scale = scale * 100
         love.graphics.scale(1/100)
-        g.galaxy.draw(g.galaxy)
+        g.galaxy:draw()
+        scale = scale / 100
         love.graphics.pop()
     end
 end
 
 function make_universe()
     u = {
-        size = make_size(1),
+        size = SIZE,
         draw = draw_universe,
         galaxies = {},
     }
 
-    for i = 1, 5 + love.math.random() * 50 do
+    for i = 1, 500 + love.math.random() * 500 do
         u.galaxies[#u.galaxies + 1] = {
             a = math.pi * 2 * love.math.random(),
-            d = u.size * love.math.random(),
+            d = u.size - (u.size * love.math.random() * love.math.random()),
             galaxy = make_galaxy(),
         }
     end
@@ -192,9 +229,9 @@ end
 
 function love.update(dt)
     if vel > 0 then
-        zoom = zoom + (zoom / 10) * dt
+        zoom = zoom + (zoom / 2) * dt
     elseif vel < 0 then
-        zoom = zoom + (zoom / 10) * dt
+        zoom = zoom - (zoom / 2) * dt
     end
 end
 
@@ -203,6 +240,7 @@ function love.draw()
 
     love.graphics.push()
     love.graphics.translate(WIDTH/2, HEIGHT/2)
+    scale = 1
     love.graphics.scale(zoom)
     universe.draw(universe)
     love.graphics.pop()
