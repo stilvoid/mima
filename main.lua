@@ -14,6 +14,8 @@ local zvel = 0
 
 local universe
 
+local draw_threshold = 10 
+
 function love.load()
     love.window.setTitle("Mima")
 
@@ -60,8 +62,8 @@ function draw(d)
         love.graphics.setColor(c)
         love.graphics.circle("fill", 0, 0, scale / panz)
         return
-    elseif effective_size <= 10 then
-        c[4] = 0.5 + (10 - effective_size) / 20
+    elseif effective_size <= draw_threshold then
+        c[4] = 0.5 + (effective_size / draw_threshold) / 2
         love.graphics.setColor(c)
         love.graphics.circle("fill", 0, 0, d.size)
         return
@@ -242,10 +244,10 @@ function draw_galaxy(g)
     for _, s in ipairs(g.systems) do
         love.graphics.push()
         love.graphics.translate(s.d * math.cos(s.a), s.d * math.sin(s.a))
-        scale = scale * 100
-        love.graphics.scale(1/100)
+        scale = scale * 10000
+        love.graphics.scale(1/10000)
         draw(s.system)
-        scale = scale / 100
+        scale = scale / 10000
         love.graphics.pop()
     end
 end
