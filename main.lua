@@ -19,7 +19,7 @@ function love.load()
     love.window.setMode(WIDTH, HEIGHT)
     love.mouse.setVisible(false)
 
-    love.math.setRandomSeed(10)
+    love.math.setRandomSeed(0)
 
     universe = make_universe()
 end
@@ -60,6 +60,19 @@ function draw(d)
     d:draw()
 end
 
+function draw_building(b)
+    love.graphics.setColor(b.colour)
+    love.graphics.rectangle("fill", -b.size/2, 0, b.size, -b.size)
+end
+
+function make_building()
+    return {
+        size = make_size(10),
+        draw = draw_building,
+        colour = {love.math.random(), love.math.random(), love.math.random()},
+    }
+end
+
 function draw_planet(p)
     c = p.colour
     c[4] = 0.5
@@ -70,14 +83,36 @@ function draw_planet(p)
     c[4] = 1
     love.graphics.setColor(c)
     love.graphics.circle("line", 0 ,0, p.size)
+
+    -- Buildings
+    for _, b in ipairs(p.buildings) do
+        love.graphics.push()
+        love.graphics.rotate(b.a)
+        love.graphics.translate(0, -p.size)
+        scale = scale * 10
+        love.graphics.scale(1/10)
+        draw(b.building)
+        scale = scale / 10
+        love.graphics.pop()
+    end
 end
 
 function make_planet()
-    return {
+    p = {
         size = make_size(10),
         draw = draw_planet,
         colour = {love.math.random(), love.math.random(), love.math.random()},
+        buildings = {},
     }
+
+    for i = 1, 5 + love.math.random() * 5 do
+        p.buildings[#p.buildings + 1] = {
+            a = math.pi * 2 * love.math.random(),
+            building = make_building(),
+        }
+    end
+
+    return p
 end
 
 function draw_star(s)
@@ -157,6 +192,12 @@ function make_solar_system()
         }
     end
 
+        ss.planets[#ss.planets + 1] = {
+            a = 0,
+            d = 1,
+            planet = make_planet(),
+        }
+
     return ss
 end
 
@@ -184,13 +225,19 @@ function make_galaxy()
         systems = {},
     }
 
-    for i = 1, 50 + love.math.random() * 50 do
+    for i = 1, g.size do
         g.systems[#g.systems + 1] = {
             a = math.pi * 2 * love.math.random(),
-            d = g.size * love.math.random(),
+            d = g.size - (g.size * love.math.random() * love.math.random()),
             system = make_solar_system(),
         }
     end
+
+        g.systems[#g.systems + 1] = {
+            a = 0,
+            d = 0,
+            system = make_solar_system(),
+        }
 
     return g
 end
@@ -219,7 +266,7 @@ function make_universe()
         galaxies = {},
     }
 
-    for i = 1, 500 + love.math.random() * 500 do
+    for i = 1, 200 + love.math.random() * 300 do
         u.galaxies[#u.galaxies + 1] = {
             a = math.pi * 2 * love.math.random(),
             d = u.size - (u.size * love.math.random() * love.math.random()),
