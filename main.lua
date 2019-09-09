@@ -25,7 +25,7 @@ function love.load()
 
     love.math.setRandomSeed(0)
 
-    universe = make_universe()
+    universe = make_multiverse()
 end
 
 function make_seed()
@@ -36,7 +36,7 @@ function make_size(variability)
     local a = SIZE / variability
     local b = SIZE - a
 
-    return b * love.math.random() + a
+    return a + b * love.math.random()
 end
 
 function draw(d)
@@ -165,7 +165,7 @@ end
 
 function make_star()
     return {
-        size = make_size(100),
+        size = make_size(20),
         draw = draw_star,
         colour = {1, love.math.random(), 0},
     }
@@ -174,8 +174,8 @@ end
 function draw_solar_system(ss)
     -- Suns
     love.graphics.push()
-    scale = scale * 50
-    love.graphics.scale(1/50)
+    scale = scale * 10
+    love.graphics.scale(1/10)
     if #ss.suns == 1 then
         ss.suns[1]:draw()
     else
@@ -188,14 +188,14 @@ function draw_solar_system(ss)
             love.graphics.pop()
         end
     end
-    scale = scale / 50
+    scale = scale / 10
     love.graphics.pop()
 
     -- Planets
     for _, p in ipairs(ss.planets) do
         -- Orbit
-        love.graphics.setColor(1, 1, 1, 0.1)
-        love.graphics.circle("line", 0, 0, p.d)
+        --love.graphics.setColor(1, 1, 1, 0.1)
+        --love.graphics.circle("line", 0, 0, p.d)
 
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.push()
@@ -216,17 +216,10 @@ function expand_solar_system(ss)
     for i = 1, love.math.random() * 10 do
         ss.planets[#ss.planets + 1] = {
             a = math.pi * 2 * love.math.random(),
-            d = ss.size * love.math.random(),
+            d = (ss.size / 2) + (ss.size / 2 * love.math.random()),
             planet = make_planet(),
         }
     end
-
-    -- Hack for testing
-    ss.planets[#ss.planets + 1] = {
-        a = 0,
-        d = 1,
-        planet = make_planet(),
-    }
 end
 
 function make_solar_system()
@@ -242,8 +235,8 @@ end
 
 function draw_galaxy(g)
     -- Cloud
-    love.graphics.setColor(1, 1, 1, 0.1)
-    love.graphics.circle("fill", 0, 0, g.size)
+    --love.graphics.setColor(1, 1, 1, 0.1)
+    --love.graphics.circle("fill", 0, 0, g.size)
 
     -- Systems
     for _, s in ipairs(g.systems) do
@@ -258,26 +251,30 @@ function draw_galaxy(g)
 end
 
 function expand_galaxy(g)
-    for i = 1, g.size do
+    -- How many arms?
+    local a = (math.pi * 2) / love.math.random(2, 5)
+    if love.math.random() < 0.5 then
+        a = -a
+    end
+
+    -- Make it twisty!
+    a = a + love.math.random() * love.math.random()
+
+    for i = 1, g.size * math.pi * 2 do
+        local size = i / (math.pi * 2)
+
         g.systems[#g.systems + 1] = {
-            a = math.pi * 2 * love.math.random(),
-            d = g.size - (g.size * love.math.random() * love.math.random()),
+            a = a * i,
+            d = size - love.math.random() * love.math.random() * size,
             system = make_solar_system(),
         }
     end
-
-    -- Hack for testing
-    g.systems[#g.systems + 1] = {
-        a = 0,
-        d = 0,
-        system = make_solar_system(),
-    }
 end
 
 function make_galaxy()
     return {
         seed = make_seed(),
-        size = make_size(20),
+        size = make_size(1000),
         expand = expand_galaxy,
         draw = draw_galaxy,
         systems = {},
@@ -285,8 +282,8 @@ function make_galaxy()
 end
 
 function draw_universe(u)
-    -- Cloud
-    love.graphics.setColor(0, 0, 1, 0.1)
+    -- Background
+    love.graphics.setColor(0, 0, 0, 0)
     love.graphics.circle("fill", 0, 0, u.size)
 
     -- Systems
@@ -309,13 +306,6 @@ function expand_universe(u)
             galaxy = make_galaxy(),
         }
     end
-
-    -- Hack for ease
-    u.galaxies[#u.galaxies + 1] = {
-        a = 0,
-        d = 0,
-        galaxy = make_galaxy(),
-    }
 end
 
 function make_universe()
@@ -328,9 +318,46 @@ function make_universe()
     }
 end
 
+function draw_multiverse(m)
+    -- Cloud
+    love.graphics.setColor(0, 0, 1, 0.1)
+    love.graphics.circle("fill", 0, 0, m.size)
+
+    -- Universes
+    for _, u in ipairs(m.universes) do
+        love.graphics.push()
+        love.graphics.translate(u.d * math.cos(u.a), u.d * math.sin(u.a))
+        scale = scale * 100
+        love.graphics.scale(1/100)
+        draw(u.universe)
+        scale = scale / 100
+        love.graphics.pop()
+    end
+end
+
+function expand_multiverse(m)
+    for i = 1, m.size / 4 do
+        m.universes[#m.universes + 1] = {
+            a = math.pi * 2 * love.math.random(),
+            d = m.size - (m.size * love.math.random() * love.math.random()),
+            universe = make_universe(),
+        }
+    end
+end
+
+function make_multiverse()
+    return {
+        seed = make_seed(),
+        size = SIZE,
+        draw = draw_multiverse,
+        expand = expand_multiverse,
+        universes = {},
+    }
+end
+
 function love.update(dt)
-    panx = panx + xvel * dt * 100 / panz
-    pany = pany + yvel * dt * 100 / panz
+    panx = panx + xvel * dt * 250 / panz
+    pany = pany + yvel * dt * 250 / panz
     panz = panz + zvel * (panz / 2) * dt
 end
 
