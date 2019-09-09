@@ -2,11 +2,15 @@ local WIDTH, HEIGHT = 1024, 768
 
 local SIZE = math.min(WIDTH, HEIGHT) / 2
 
-local zoom = 1
+local panx = 0
+local pany = 0
+local panz = 1
 
 local scale = 1
 
-local vel = 0
+local xvel = 0
+local yvel = 0
+local zvel = 0
 
 local universe
 
@@ -50,11 +54,11 @@ function draw(d)
     end
 
     -- Draw a dot if it's small
-    effective_size = (d.size * 2) / scale * zoom
+    effective_size = (d.size * 2) / scale * panz
     if effective_size <= 1 then
         c[4] = effective_size / 2
         love.graphics.setColor(c)
-        love.graphics.circle("fill", 0, 0, scale / zoom)
+        love.graphics.circle("fill", 0, 0, scale / panz)
         return
     elseif effective_size <= 10 then
         c[4] = 0.5 + (10 - effective_size) / 20
@@ -325,11 +329,9 @@ function make_universe()
 end
 
 function love.update(dt)
-    if vel > 0 then
-        zoom = zoom + (zoom / 2) * dt
-    elseif vel < 0 then
-        zoom = zoom - (zoom / 2) * dt
-    end
+    panx = panx + xvel * dt * 100 / panz
+    pany = pany + yvel * dt * 100 / panz
+    panz = panz + zvel * (panz / 2) * dt
 end
 
 function love.draw()
@@ -338,7 +340,8 @@ function love.draw()
     love.graphics.push()
     love.graphics.translate(WIDTH/2, HEIGHT/2)
     scale = 1
-    love.graphics.scale(zoom)
+    love.graphics.scale(panz)
+    love.graphics.translate(panx, pany)
     draw(universe)
     love.graphics.pop()
 end
@@ -348,17 +351,65 @@ function love.keypressed(key)
         love.event.quit()
     end
 
+    -- Left
+    if key == "a" then
+        xvel = xvel + 1
+    end
+
+    -- Right
+    if key == "d" then
+        xvel = xvel - 1
+    end
+
+    -- Up
+    if key == "w" then
+        yvel = yvel + 1
+    end
+
+    -- Down
+    if key == "s" then
+        yvel = yvel - 1
+    end
+
+    -- In
     if key == "up" then
-        vel = vel + 1
-    elseif key == "down" then
-        vel = vel - 1
+        zvel = zvel + 1
+    end
+
+    -- Out
+    if key == "down" then
+        zvel = zvel - 1
     end
 end
 
 function love.keyreleased(key)
+    -- Left
+    if key == "a" then
+        xvel = xvel - 1
+    end
+
+    -- Right
+    if key == "d" then
+        xvel = xvel + 1
+    end
+
+    -- Up
+    if key == "w" then
+        yvel = yvel - 1
+    end
+
+    -- Down
+    if key == "s" then
+        yvel = yvel + 1
+    end
+
+    -- In
     if key == "up" then
-        vel = vel - 1
-    elseif key == "down" then
-        vel = vel + 1
+        zvel = zvel - 1
+    end
+
+    -- Out
+    if key == "down" then
+        zvel = zvel + 1
     end
 end
