@@ -24,6 +24,10 @@ function love.load()
     universe = make_universe()
 end
 
+function make_seed()
+    return love.math.random(0, 2^53 - 1)
+end
+
 function make_size(variability)
     local a = SIZE / variability
     local b = SIZE - a
@@ -32,6 +36,7 @@ function make_size(variability)
 end
 
 function draw(d)
+    -- Don't draw if it's off-screen
     local x1, y1 = love.graphics.transformPoint(-d.size, -d.size)
     local x2, y2 = love.graphics.transformPoint(d.size, d.size)
     if x2 < 0 or x1 > WIDTH or y2 < 0 or y1 > HEIGHT then
@@ -44,6 +49,7 @@ function draw(d)
         c = {1, 1, 1}
     end
 
+    -- Draw a dot if it's small
     effective_size = (d.size * 2) / scale * zoom
     if effective_size <= 1 then
         c[4] = effective_size / 2
@@ -57,31 +63,55 @@ function draw(d)
         return
     end
 
+    -- Expand if it's not expanded yet
+    if d.expanded == nil and d.expand ~= nil then
+        love.math.setRandomSeed(d.seed)
+        d:expand()
+        d.expanded = true
+    end
+
+    -- Draw it
     d:draw()
 end
 
 function draw_building(b)
+    -- Half-bright
+    c = {
+        b.colour[1] / 2,
+        b.colour[2] / 2,
+        b.colour[3] / 2,
+    }
+    love.graphics.setColor(c)
+    love.graphics.rectangle("fill", -b.size/4, b.size / 4, b.size / 2, -3 * b.size / 4)
+
     love.graphics.setColor(b.colour)
-    love.graphics.rectangle("fill", -b.size/2, 0, b.size, -b.size)
+    love.graphics.line(
+        -b.size/4, 0,
+        -b.size/4, -b.size / 2,
+        b.size/4, -b.size / 2,
+        b.size/4, 0
+    )
 end
 
-function make_building()
+function make_building(c)
     return {
         size = make_size(10),
         draw = draw_building,
-        colour = {love.math.random(), love.math.random(), love.math.random()},
+        colour = c,
     }
 end
 
 function draw_planet(p)
-    c = p.colour
-    c[4] = 0.5
-
+    -- Half-bright
+    c = {
+        p.colour[1] / 2,
+        p.colour[2] / 2,
+        p.colour[3] / 2,
+    }
     love.graphics.setColor(c)
     love.graphics.circle("fill", 0 ,0, p.size)
 
-    c[4] = 1
-    love.graphics.setColor(c)
+    love.graphics.setColor(p.colour)
     love.graphics.circle("line", 0 ,0, p.size)
 
     -- Buildings
@@ -97,22 +127,24 @@ function draw_planet(p)
     end
 end
 
+function expand_planet(p)
+    for i = 1, 100 + love.math.random() * 100 do
+        p.buildings[#p.buildings + 1] = {
+            a = math.pi * 2 * love.math.random(),
+            building = make_building(p.colour),
+        }
+    end
+end
+
 function make_planet()
-    p = {
+    return {
+        seed = make_seed(),
         size = make_size(10),
         draw = draw_planet,
+        expand = expand_planet,
         colour = {love.math.random(), love.math.random(), love.math.random()},
         buildings = {},
     }
-
-    for i = 1, 5 + love.math.random() * 5 do
-        p.buildings[#p.buildings + 1] = {
-            a = math.pi * 2 * love.math.random(),
-            building = make_building(),
-        }
-    end
-
-    return p
 end
 
 function draw_star(s)
@@ -172,14 +204,7 @@ function draw_solar_system(ss)
     end
 end
 
-function make_solar_system()
-    ss = {
-        size = make_size(2),
-        draw = draw_solar_system,
-        suns = {},
-        planets = {},
-    }
-
+function expand_solar_system(ss)
     for i = 1, 1 + love.math.random() * 2 do
         ss.suns[#ss.suns + 1] = make_star()
     end
@@ -192,13 +217,23 @@ function make_solar_system()
         }
     end
 
-        ss.planets[#ss.planets + 1] = {
-            a = 0,
-            d = 1,
-            planet = make_planet(),
-        }
+    -- Hack for testing
+    ss.planets[#ss.planets + 1] = {
+        a = 0,
+        d = 1,
+        planet = make_planet(),
+    }
+end
 
-    return ss
+function make_solar_system()
+    return {
+        seed = make_seed(),
+        size = make_size(2),
+        expand = expand_solar_system,
+        draw = draw_solar_system,
+        suns = {},
+        planets = {},
+    }
 end
 
 function draw_galaxy(g)
@@ -218,13 +253,7 @@ function draw_galaxy(g)
     end
 end
 
-function make_galaxy()
-    g = {
-        size = make_size(20),
-        draw = draw_galaxy,
-        systems = {},
-    }
-
+function expand_galaxy(g)
     for i = 1, g.size do
         g.systems[#g.systems + 1] = {
             a = math.pi * 2 * love.math.random(),
@@ -233,13 +262,22 @@ function make_galaxy()
         }
     end
 
-        g.systems[#g.systems + 1] = {
-            a = 0,
-            d = 0,
-            system = make_solar_system(),
-        }
+    -- Hack for testing
+    g.systems[#g.systems + 1] = {
+        a = 0,
+        d = 0,
+        system = make_solar_system(),
+    }
+end
 
-    return g
+function make_galaxy()
+    return {
+        seed = make_seed(),
+        size = make_size(20),
+        expand = expand_galaxy,
+        draw = draw_galaxy,
+        systems = {},
+    }
 end
 
 function draw_universe(u)
@@ -259,14 +297,8 @@ function draw_universe(u)
     end
 end
 
-function make_universe()
-    u = {
-        size = SIZE,
-        draw = draw_universe,
-        galaxies = {},
-    }
-
-    for i = 1, 200 + love.math.random() * 300 do
+function expand_universe(u)
+    for i = 1, u.size do
         u.galaxies[#u.galaxies + 1] = {
             a = math.pi * 2 * love.math.random(),
             d = u.size - (u.size * love.math.random() * love.math.random()),
@@ -274,13 +306,22 @@ function make_universe()
         }
     end
 
-        u.galaxies[#u.galaxies + 1] = {
-            a = 0,
-            d = 0,
-            galaxy = make_galaxy(),
-        }
+    -- Hack for ease
+    u.galaxies[#u.galaxies + 1] = {
+        a = 0,
+        d = 0,
+        galaxy = make_galaxy(),
+    }
+end
 
-    return u
+function make_universe()
+    return {
+        seed = make_seed(),
+        size = SIZE,
+        draw = draw_universe,
+        expand = expand_universe,
+        galaxies = {},
+    }
 end
 
 function love.update(dt)
@@ -298,7 +339,7 @@ function love.draw()
     love.graphics.translate(WIDTH/2, HEIGHT/2)
     scale = 1
     love.graphics.scale(zoom)
-    universe.draw(universe)
+    draw(universe)
     love.graphics.pop()
 end
 
